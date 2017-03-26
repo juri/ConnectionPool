@@ -31,7 +31,7 @@ public class DispatchPool: Pool {
     private var returnPile: ContiguousArray<Connection>
     private var waiting: ContiguousArray<DispatchSemaphore>
 
-    init(connectionFactory: ConnectionFactory, maxConnections: Int?, maxIdleConnections: Int?) {
+    public init(connectionFactory: ConnectionFactory, maxConnections: Int?, maxIdleConnections: Int?) {
         self.connectionFactory = connectionFactory
         self.maxConnections = maxConnections
         self.maxIdleConnections = maxIdleConnections
