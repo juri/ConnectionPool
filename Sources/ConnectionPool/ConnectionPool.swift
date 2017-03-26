@@ -56,20 +56,15 @@ public class DispatchPool: Pool {
         }
 
         while notOverTimeout {
-            var resOrNil: ReserveResult? = nil
-            self.workQueue.sync {
+            let result: ReserveResult = self.workQueue.sync {
                 if let conn = self.connections.popLast() {
-                    resOrNil = .connection(conn)
-                    return
+                    return .connection(conn)
                 }
                 let semaphore = DispatchSemaphore(value: 0)
                 self.waiting.append(semaphore)
-                resOrNil = .wait(semaphore)
+                return .wait(semaphore)
             }
-            guard let res = resOrNil else {
-                throw PoolError.reserveFailed
-            }
-            switch res {
+            switch result {
             case let .connection(conn):
                 return conn
             case let .wait(sema):
@@ -80,9 +75,8 @@ public class DispatchPool: Pool {
     }
 
     public func reserveIfAvailable() throws -> Connection? {
-        var conn: Connection? = nil
-        self.workQueue.sync {
-            conn = self.connections.popLast()
+        let conn = self.workQueue.sync {
+            return self.connections.popLast()
         }
         return conn
     }
