@@ -56,8 +56,8 @@ public class DispatchPool: Pool {
         }
 
         while notOverTimeout {
-            let result: ReserveResult = self.workQueue.sync {
-                if let conn = self.connections.popLast() {
+            let result: ReserveResult = try self.workQueue.sync {
+                if let conn = try self.reserveConnection() {
                     return .connection(conn)
                 }
                 let semaphore = DispatchSemaphore(value: 0)
@@ -75,8 +75,8 @@ public class DispatchPool: Pool {
     }
 
     public func reserveIfAvailable() throws -> Connection? {
-        let conn = self.workQueue.sync {
-            return self.connections.popLast()
+        let conn = try self.workQueue.sync {
+            return try self.reserveConnection()
         }
         return conn
     }
@@ -123,7 +123,7 @@ public class DispatchPool: Pool {
     }
 
     private func maybeCreateConnection() throws -> Connection? {
-        if let maxConnections = self.maxConnections, self.totalConnections < maxConnections {
+        if let maxConnections = self.maxConnections, self.totalConnections >= maxConnections {
             return nil
         }
         let conn = try self.connectionFactory.connection()
