@@ -49,13 +49,11 @@ public class DispatchPool: Pool {
             case connection(Connection)
             case wait(DispatchSemaphore)
         }
-        let start = Date()
-        var notOverTimeout: Bool {
-            guard let t = timeout else { return true }
-            return Date().timeIntervalSince(start) < t
-        }
+        let dispatchTimeout = timeout.map {
+            DispatchTime.now() + DispatchTimeInterval.milliseconds(Int($0 * 1000))
+        } ?? DispatchTime.distantFuture
 
-        while notOverTimeout {
+        waitLoop: while true {
             let result: ReserveResult = try self.workQueue.sync {
                 if let conn = try self.reserveConnection() {
                     return .connection(conn)
@@ -68,7 +66,10 @@ public class DispatchPool: Pool {
             case let .connection(conn):
                 return conn
             case let .wait(sema):
-                sema.wait()
+                switch sema.wait(timeout: dispatchTimeout) {
+                case .success: break
+                case .timedOut: break waitLoop
+                }
             }
         }
         return nil
