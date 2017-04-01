@@ -3,20 +3,17 @@ import ConnectionPool
 
 class ReserveOrWaitTests: XCTestCase {
     func test_reserve_wait_doesnt_block_with_unlimited() throws {
-        let factory = ClosureConnectionFactory(connectionCloser: {})
-        let pool = DispatchPool(connectionFactory: factory, maxConnections: nil, maxIdleConnections: nil)
+        let pool = DispatchPool<ClosureConnection>(connectionFactory: closureConnectionFactory, maxConnections: nil, maxIdleConnections: nil)
         XCTAssertNotNil(try pool.reserveOrWait(timeout: nil))
     }
 
     func test_reserve_wait_doesnt_block_when_under_limit() throws {
-        let factory = ClosureConnectionFactory(connectionCloser: {})
-        let pool = DispatchPool(connectionFactory: factory, maxConnections: 1, maxIdleConnections: nil)
+        let pool = DispatchPool<ClosureConnection>(connectionFactory: closureConnectionFactory, maxConnections: 1, maxIdleConnections: nil)
         XCTAssertNotNil(try pool.reserveOrWait(timeout: nil))
     }
 
     func test_reserve_wait_blocks_free_unblocks() throws {
-        let factory = ClosureConnectionFactory(connectionCloser: {})
-        let pool = DispatchPool(connectionFactory: factory, maxConnections: 1, maxIdleConnections: nil)
+        let pool = DispatchPool<ClosureConnection>(connectionFactory: closureConnectionFactory, maxConnections: 1, maxIdleConnections: nil)
 
         let c1 = try pool.reserveOrWait(timeout: nil)!
         let expect = self.expectation(description: "Unblocked")

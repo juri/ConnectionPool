@@ -3,8 +3,7 @@ import ConnectionPool
 
 class ReserveOrWaitTimeoutTests: XCTestCase {
     func test_wait_timeout() throws {
-        let factory = ClosureConnectionFactory(connectionCloser: {})
-        let pool = DispatchPool(connectionFactory: factory, maxConnections: 1, maxIdleConnections: nil)
+        let pool = DispatchPool<ClosureConnection>(connectionFactory: closureConnectionFactory, maxConnections: 1, maxIdleConnections: nil)
         let expectation = self.expectation(description: "Unblocked")
         DispatchQueue.global().async {
             do {
@@ -27,8 +26,7 @@ class ReserveOrWaitTimeoutTests: XCTestCase {
     }
 
     func test_wait_timeout_interrupted_by_free() throws {
-        let factory = ClosureConnectionFactory(connectionCloser: {})
-        let pool = DispatchPool(connectionFactory: factory, maxConnections: 1, maxIdleConnections: nil)
+        let pool = DispatchPool<ClosureConnection>(connectionFactory: closureConnectionFactory, maxConnections: 1, maxIdleConnections: nil)
         let expectation = self.expectation(description: "Unblocked")
         DispatchQueue.global().async {
             do {
@@ -59,8 +57,7 @@ class ReserveOrWaitTimeoutTests: XCTestCase {
     }
 
     func test_wait_timeout_first_interrupted_by_free_second_times_out() throws {
-        let factory = ClosureConnectionFactory(connectionCloser: {})
-        let pool = DispatchPool(connectionFactory: factory, maxConnections: 1, maxIdleConnections: nil)
+        let pool = DispatchPool<ClosureConnection>(connectionFactory: closureConnectionFactory, maxConnections: 1, maxIdleConnections: nil)
         let expectation2 = self.expectation(description: "Unblocked 2")
         let expectation3 = self.expectation(description: "Timed out 3")
         DispatchQueue.global().async {
@@ -109,8 +106,7 @@ class ReserveOrWaitTimeoutTests: XCTestCase {
     }
 
     func test_wait_timeout_first_interrupted_by_free_second_interrupted_by_free() throws {
-        let factory = ClosureConnectionFactory(connectionCloser: {})
-        let pool = DispatchPool(connectionFactory: factory, maxConnections: 1, maxIdleConnections: nil)
+        let pool = DispatchPool<ClosureConnection>(connectionFactory: closureConnectionFactory, maxConnections: 1, maxIdleConnections: nil)
         let expectation2 = self.expectation(description: "Unblocked 2")
         let expectation3 = self.expectation(description: "Timed out 3")
         DispatchQueue.global().async {

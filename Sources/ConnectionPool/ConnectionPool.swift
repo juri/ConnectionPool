@@ -5,21 +5,22 @@ public protocol Connection: class {
     func close() throws
 }
 
-public protocol ConnectionFactory {
-    func connection() throws -> Connection
-}
-
 public protocol Pool: class {
-    func reserveOrWait(timeout: TimeInterval?) throws -> Connection?
-    func reserveIfAvailable() throws -> Connection?
-    func free(_ connection: Connection) throws
+    associatedtype Conn
+
+    func reserveOrWait(timeout: TimeInterval?) throws -> Conn?
+    func reserveIfAvailable() throws -> Conn?
+    func free(_ connection: Conn) throws
 }
 
 public enum PoolError: Error {
     case reserveFailed
 }
 
-public class DispatchPool: Pool {
+public class DispatchPool<C: Connection>: Pool {
+    public typealias Conn = C
+    public typealias ConnectionFactory = (Void) throws -> C
+
     private let connectionFactory: ConnectionFactory
     private let maxConnections: Int?
     private let maxIdleConnections: Int?
@@ -27,11 +28,11 @@ public class DispatchPool: Pool {
     private let workQueue: DispatchQueue
 
     private var reservedConnectionCount: Int
-    private var connections: ContiguousArray<Connection>
-    private var returnPile: ContiguousArray<Connection>
+    private var connections: ContiguousArray<Conn>
+    private var returnPile: ContiguousArray<Conn>
     private var waiting: ContiguousArray<DispatchSemaphore>
 
-    public init(connectionFactory: ConnectionFactory, maxConnections: Int?, maxIdleConnections: Int?) {
+    public init(connectionFactory: @escaping ConnectionFactory, maxConnections: Int?, maxIdleConnections: Int?) {
         self.connectionFactory = connectionFactory
         self.maxConnections = maxConnections
         self.maxIdleConnections = maxIdleConnections
@@ -44,11 +45,7 @@ public class DispatchPool: Pool {
         self.reservedConnectionCount = 0
     }
 
-    public func reserveOrWait(timeout: TimeInterval?) throws -> Connection? {
-        enum ReserveResult {
-            case connection(Connection)
-            case wait(DispatchSemaphore)
-        }
+    public func reserveOrWait(timeout: TimeInterval?) throws -> Conn? {
         let dispatchTimeout = timeout.map {
             DispatchTime.now() + DispatchTimeInterval.milliseconds(Int($0 * 1000))
         } ?? DispatchTime.distantFuture
@@ -75,14 +72,14 @@ public class DispatchPool: Pool {
         return nil
     }
 
-    public func reserveIfAvailable() throws -> Connection? {
+    public func reserveIfAvailable() throws -> Conn? {
         let conn = try self.workQueue.sync {
             return try self.reserveConnection()
         }
         return conn
     }
 
-    public func free(_ connection: Connection) throws {
+    public func free(_ connection: Conn) throws {
         try self.workQueue.sync {
             if let maxIdleConnections = self.maxIdleConnections, maxIdleConnections < self.returnPile.count {
                 try connection.close()
@@ -96,7 +93,12 @@ public class DispatchPool: Pool {
 
     // Only call the private functions on workQueue
 
-    private func reserveConnection() throws -> Connection? {
+    private enum ReserveResult {
+        case connection(C)
+        case wait(DispatchSemaphore)
+    }
+
+    private func reserveConnection() throws -> C? {
         if let conn = self.reserveFreeConnection() {
             return conn
         }
@@ -115,7 +117,7 @@ public class DispatchPool: Pool {
         return nil
     }
 
-    private func reserveFreeConnection() -> Connection? {
+    private func reserveFreeConnection() -> C? {
         guard let conn = self.connections.popLast() else {
             return nil
         }
@@ -123,11 +125,11 @@ public class DispatchPool: Pool {
         return conn
     }
 
-    private func maybeCreateConnection() throws -> Connection? {
+    private func maybeCreateConnection() throws -> C? {
         if let maxConnections = self.maxConnections, self.totalConnections >= maxConnections {
             return nil
         }
-        let conn = try self.connectionFactory.connection()
+        let conn = try self.connectionFactory()
         self.reservedConnectionCount += 1
         return conn
     }

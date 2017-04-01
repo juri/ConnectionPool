@@ -13,21 +13,10 @@ class ClosureConnection: Connection {
     }
 }
 
-class ClosureConnectionFactory: ConnectionFactory {
-    typealias ConnectionMaker = (Void) throws -> Connection
-    private let connectionMaker: ConnectionMaker
+func closureConnectionFactory(connectionCloser: @escaping ClosureConnection.Closer) throws -> ClosureConnection {
+    return ClosureConnection(closer: connectionCloser)
+}
 
-    init(connectionMaker: @escaping ConnectionMaker) {
-        self.connectionMaker = connectionMaker
-    }
-
-    convenience init(connectionCloser: @escaping ClosureConnection.Closer) {
-        self.init(connectionMaker: {
-            return ClosureConnection(closer: connectionCloser)
-        })
-    }
-
-    func connection() throws -> Connection {
-        return try self.connectionMaker()
-    }
+func closureConnectionFactory() throws -> ClosureConnection {
+    return ClosureConnection(closer: {})
 }
